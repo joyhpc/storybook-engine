@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storybook Engine - 项目地图</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 1rem;
+      font-size: 2.5rem;
+    }
+    .meta {
+      text-align: center;
+      color: #718096;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 40px;
+      background: #e2e8f0;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 3rem;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #48bb78, #38a169);
+      width: 50%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    .phase {
+      margin-bottom: 3rem;
+    }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 10px;
+      color: white;
+    }
+    .phase-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      flex: 1;
+    }
+    .phase-progress {
+      font-size: 1.2rem;
+      background: rgba(255,255,255,0.2);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+    }
+    .tasks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1rem;
+    }
+    .task {
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 1rem;
+      background: white;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .task:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .task.done {
+      background: #f0fff4;
+      border-color: #48bb78;
+    }
+    .task.critical {
+      border-color: #f56565;
+      border-width: 3px;
+    }
+    .task-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .task-status {
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+    .task-name {
+      font-weight: bold;
+      color: #2d3748;
+      flex: 1;
+      font-size: 1rem;
+    }
+    .task-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-weight: bold;
+      margin-left: 0.5rem;
+    }
+    .badge-critical {
+      background: #fed7d7;
+      color: #c53030;
+    }
+    .badge-milestone {
+      background: #feebc8;
+      color: #c05621;
+    }
+    .task-meta {
+      font-size: 0.85rem;
+      color: #718096;
+      margin-top: 0.5rem;
+    }
+    .task-owner {
+      display: inline-block;
+      background: #edf2f7;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      margin-right: 0.5rem;
+    }
+    .task-days {
+      display: inline-block;
+      background: #bee3f8;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 3rem;
+      padding: 1.5rem;
+      background: #f7fafc;
+      border-radius: 10px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: #4a5568;
+    }
+    .legend-icon {
+      font-size: 1.2rem;
+    }
+    .critical-path {
+      margin-top: 3rem;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+      border-radius: 10px;
+      border: 3px solid #f56565;
+    }
+    .critical-path h3 {
+      color: #c53030;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    .critical-path-flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: #742a2a;
+    }
+    .arrow {
+      color: #c53030;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 Storybook Engine - 项目地图</h1>
+    <div class="meta">
+      总工期: 7 天 | 总节点: 22 | 关键路径: 7 节点
+    </div>
+    
+    <div class="progress-bar">
+      <div class="progress-fill">11/22 完成 (50%)</div>
+    </div>
+
+    <!-- 设计阶段 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-title">📐 设计阶段</div>
+        <div class="phase-progress">6/6 ✅</div>
+      </div>
+      <div class="tasks">
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">需求分析与商业逻辑验证</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 Nova</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">内容选择(小王子原文片段)</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 pengzi</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">JSON Schema 设计</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 Nova</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">技术架构设计</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 Nova</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">设计评审</span>
+            <span class="task-badge badge-milestone">🏁</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">量产 Book Schema 设计</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 开发阶段 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-title">💻 开发阶段</div>
+        <div class="phase-progress">5/8</div>
+      </div>
+      <div class="tasks">
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">拖拽交互引擎</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">字音同步引擎</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">场景渲染器</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task done">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">素材 Mock</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task done critical">
+          <div class="task-header">
+            <span class="task-status">✅</span>
+            <span class="task-name">引擎集成与场景组装</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">多场景/翻页引擎</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">AIGC 流水线</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">开发完成</span>
+            <span class="task-badge badge-milestone">🏁</span>
+          </div>
+          <div class="task-meta">
+            <span style="color: #38a169;">slack: 2天</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 测试阶段 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-title">🧪 测试与优化</div>
+        <div class="phase-progress">0/4</div>
+      </div>
+      <div class="tasks">
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">移动端适配与防误触</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">性能测试(低端机/弱网)</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 1天</span>
+            <span style="color: #38a169;">slack: 3天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">动效与音效打磨</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 2天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">测试通过</span>
+            <span class="task-badge badge-milestone">🏁</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 发布阶段 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-title">🚀 发布与验证</div>
+        <div class="phase-progress">0/4</div>
+      </div>
+      <div class="tasks">
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">短视频录制(15秒 Aha Moment)</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 pengzi</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">H5 部署(微信可访问)</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-owner">👤 开发者</span>
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">GitHub Pages 部署</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+          <div class="task-meta">
+            <span class="task-days">⏱️ 1天</span>
+          </div>
+        </div>
+
+        <div class="task critical">
+          <div class="task-header">
+            <span class="task-status">⏳</span>
+            <span class="task-name">MVP 发布</span>
+            <span class="task-badge badge-milestone">🏁</span>
+            <span class="task-badge badge-critical">🔴</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关键路径 -->
+    <div class="critical-path">
+      <h3>🔴 关键路径 (7 天)</h3>
+      <div class="critical-path-flow">
+        <span>book_schema (1d)</span>
+        <span class="arrow">→</span>
+        <span>aigc_pipeline (2d)</span>
+        <span class="arrow">→</span>
+        <span>multi_scene (2d)</span>
+        <span class="arrow">→</span>
+        <span>mobile_optimize (2d)</span>
+        <span class="arrow">→</span>
+        <span>ux_polish (2d)</span>
+        <span class="arrow">→</span>
+        <span>deploy/github_pages/video (1d)</span>
+        <span class="arrow">→</span>
+        <span>ms_launch</span>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-icon">✅</span>
+        <span>已完成</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon">⏳</span>
+        <span>待完成</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon">🔴</span>
+        <span>关键路径</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon">🏁</span>
+        <span>里程碑</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
