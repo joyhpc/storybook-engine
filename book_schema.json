@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Interactive Storybook Book Schema",
+  "description": "Schema for a complete, multi-scene interactive storybook, designed for AI-driven mass production.",
+  "type": "object",
+  "required": [
+    "metadata",
+    "global_ui_config",
+    "scenes"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Global metadata for the entire book.",
+      "required": [
+        "book_id",
+        "title",
+        "author",
+        "language_pairs"
+      ],
+      "properties": {
+        "book_id": {
+          "type": "string",
+          "description": "Unique identifier for the book. (e.g., 'little_prince_fox_taming')"
+        },
+        "title": {
+          "type": "string",
+          "description": "Book title. (e.g., 'The Little Prince and the Fox')"
+        },
+        "author": {
+          "type": "string",
+          "description": "Author of the book. (e.g., 'Antoine de Saint-Exupéry')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description or synopsis of the book."
+        },
+        "target_age_range": {
+          "type": "string",
+          "description": "Target age range (e.g., '4-8 years old', '3+')."
+        },
+        "language_pairs": {
+          "type": "array",
+          "description": "Supported language pairs for bilingual mode. (e.g., [['en', 'zh'], ['en', 'fr']])",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "string" }
+          },
+          "minItems": 1
+        },
+        "cover_image": {
+          "type": "string",
+          "description": "Path to the book's cover image."
+        }
+      }
+    },
+    "global_ui_config": {
+      "type": "object",
+      "description": "Global UI/UX configurations for the entire book.",
+      "properties": {
+        "font_family": {
+          "type": "string",
+          "description": "Primary font family for the book (e.g., 'Nunito', 'Playfair Display')."
+        },
+        "theme_color": {
+          "type": "string",
+          "description": "Primary theme color (hex code or CSS variable name)."
+        },
+        "word_highlight_style": {
+          "type": "object",
+          "description": "CSS styles for word highlighting."
+        },
+        "transition_animation": {
+          "type": "string",
+          "enum": ["fade", "slide", "wipe", "none"],
+          "description": "Default transition animation between scenes."
+        },
+        "navigation_type": {
+          "type": "string",
+          "enum": ["swipe", "buttons", "none"],
+          "description": "Type of navigation between scenes."
+        },
+        "button_style": {
+          "type": "object",
+          "description": "Default styles for UI buttons (e.g., 'next', 'prev')."
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "description": "Array of individual scenes that make up the book.",
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "type",
+          "content"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "description": "Unique identifier for this specific scene. (e.g., 'scene_desert_fox_intro')"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["narrative", "interactive", "quiz", "end_page"],
+            "description": "Type of scene, defining its core functionality."
+          },
+          "order": {
+            "type": "integer",
+            "description": "The sequential order of the scene in the book. (e.g., 1, 2, 3)"
+          },
+          "content": {
+            "type": "object",
+            "description": "The actual content and interactive elements for the scene. This will heavily reuse and extend the previous `scene_schema.json` concepts."
+            // Detailed content for different scene types will be defined here.
+            // For now, we'll keep it as a placeholder.
+          },
+          "next_scene_id": {
+            "type": "string",
+            "description": "Optional: Explicit ID of the next scene. If not present, default sequential order is used."
+          },
+          "prev_scene_id": {
+            "type": "string",
+            "description": "Optional: Explicit ID of the previous scene. If not present, default sequential order is used."
+          },
+          "conditional_next_scene": {
+            "type": "object",
+            "description": "Defines conditional branching to other scenes based on user interaction outcomes."
+            // e.g., if interaction 'feed_fox' success, go to 'scene_fox_happy', else 'scene_fox_sad'.
+          }
+        }
+      }
+    }
+  }
+}
