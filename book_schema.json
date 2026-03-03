@@ -1,11 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Interactive Storybook Book Schema (V3 - AIGC Ready)",
-  "description": "Schema for a complete, multi-scene interactive storybook, redesigned for AI-driven mass production using Component & Event-Driven DSL, with Two-Stage Compilation and Late-Binding for dynamic content injection.",
+  "title": "Interactive Storybook Book Schema (V4 - Narrative Engine)",
+  "description": "Schema for a complete, multi-scene interactive storybook, redesigned for AI-driven mass production using Component & Event-Driven DSL, with Two-Stage Compilation and Late-Binding for dynamic content injection, and Global Blackboard for complex narrative flows.",
   "type": "object",
   "required": [
     "metadata",
     "global_ui_config",
+    "initial_state",
     "scenes"
   ],
   "properties": {
@@ -93,6 +94,27 @@
         }
       }
     },
+    "initial_state": {
+      "type": "object",
+      "description": "Initial global state for the story (Global Blackboard). Can be used for inventory, metrics, flags etc. Supports variable interpolation in default values.",
+      "properties": {
+        "inventory": {
+          "type": "array",
+          "description": "Items collected by the user.",
+          "items": { "type": "string" }
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Numeric metrics for the user's progress or performance.",
+          "additionalProperties": { "type": "number" }
+        },
+        "flags": {
+          "type": "object",
+          "description": "Boolean flags for key story events or choices.",
+          "additionalProperties": { "type": "boolean" }
+        }
+      }
+    },
     "scenes": {
       "type": "array",
       "description": "Array of individual scenes (stages) that make up the book.",
@@ -101,7 +123,8 @@
         "required": [
           "scene_id",
           "elements",
-          "events"
+          "events",
+          "transitions"
         ],
         "properties": {
           "scene_id": {
@@ -254,12 +277,12 @@
                     "properties": {
                       "verb": {
                         "type": "string",
-                        "enum": ["EQUALS", "CONTAINS", "GREATER_THAN", "LESS_THAN", "NOT"],
-                        "description": "Operator (e.g., EQUALS, CONTAINS)."
+                        "enum": ["EQUALS", "CONTAINS", "GREATER_THAN", "LESS_THAN", "NOT", "GTE", "LTE", "HAS_TRAIT"],
+                        "description": "Operator (e.g., EQUALS, CONTAINS). Added GTE, LTE, HAS_TRAIT."
                       },
                       "subject": {
                         "type": "string",
-                        "description": "Dynamic path to state (e.g., '$element.apple.current_pos.x', '$state.quiz.answer_input'). Supports variable interpolation."
+                        "description": "Dynamic path to state (e.g., '$element.apple.current_pos.x', '$state.quiz.answer_input', '$story_state.metrics.bravery_score'). Supports variable interpolation."
                       },
                       "target": {
                         "type": "any",
@@ -277,8 +300,8 @@
                     "properties": {
                       "type": {
                         "type": "string",
-                        "enum": ["change_state", "play_audio", "play_animation", "emit_telemetry", "navigate", "show_toast", "add_trait", "remove_trait"],
-                        "description": "Type of action."
+                        "enum": ["change_state", "play_audio", "play_animation", "emit_telemetry", "mutate_state", "navigate", "show_toast", "add_trait", "remove_trait"],
+                        "description": "Type of action. Added 'mutate_state'."
                       },
                       "target_id": {
                         "type": "string",
@@ -291,6 +314,29 @@
                       "to": {
                         "type": "string",
                         "description": "Target scene_id for 'navigate' action. Supports variable interpolation."
+                      },
+                      "operations": {
+                        "type": "array",
+                        "description": "Array of state mutation operations for 'mutate_state' action.",
+                        "items": {
+                          "type": "object",
+                          "required": ["operator", "path"],
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": ["SET", "ADD", "SUBTRACT", "ARRAY_PUSH", "ARRAY_REMOVE"],
+                              "description": "Mutation operator."
+                            },
+                            "path": {
+                              "type": "string",
+                              "description": "Path in $story_state to mutate. (e.g., '$story_state.metrics.bravery_score')."
+                            },
+                            "value": {
+                              "type": "any",
+                              "description": "Value for the operation."
+                            }
+                          }
+                        }
                       },
                       "event": {
                         "type": "string",
@@ -310,6 +356,26 @@
                 }
               }
             }
+          },
+          "transitions": {
+            "type": "array",
+            "description": "Defines the routing logic from this scene to the next, based on current story state. Evaluated in order.",
+            "items": {
+              "type": "object",
+              "required": ["target_scene"],
+              "properties": {
+                "condition": {
+                  "type": "object",
+                  "description": "Optional: Condition (logical AST) that must be true for this transition to occur. If null, always true."
+                  // Same structure as events[].conditions[].
+                },
+                "target_scene": {
+                  "type": "string",
+                  "description": "ID of the scene to navigate to if condition is met. Supports variable interpolation."
+                }
+              }
+            },
+            "minItems": 1
           },
           "scene_state": {
             "type": "object",
