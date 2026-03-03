@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Interactive Storybook Book Schema (V2)",
-  "description": "Schema for a complete, multi-scene interactive storybook, redesigned for AI-driven mass production using Component & Event-Driven DSL.",
+  "title": "Interactive Storybook Book Schema (V3 - AIGC Ready)",
+  "description": "Schema for a complete, multi-scene interactive storybook, redesigned for AI-driven mass production using Component & Event-Driven DSL, with Two-Stage Compilation and Late-Binding for dynamic content injection.",
   "type": "object",
   "required": [
     "metadata",
@@ -52,11 +52,12 @@
         },
         "cover_image": {
           "type": "string",
-          "description": "Path to the book's cover image."
+          "description": "Static path to the book's cover image. For dynamic generation, use 'cover_provider'."
         },
-        "cover_style": {
-          "type": "string",
-          "description": "Prompts or configurations for AIGC to generate cover image."
+        "cover_provider": {
+          "type": "object",
+          "description": "JIT AIGC provider for cover image, for dynamic generation."
+          // Structure similar to elements[].provider
         }
       }
     },
@@ -124,11 +125,87 @@
                 },
                 "type": {
                   "type": "string",
-                  "description": "Type of element (e.g., 'background_image', 'character', 'text_line', 'draggable_item', 'plugin_speech_to_text')."
+                  "description": "Type of element (e.g., 'background_image', 'character', 'text_line', 'draggable_item', 'plugin_speech_to_text', 'aigc_drawing_canvas')."
                 },
                 "config": {
                   "type": "object",
-                  "description": "Element-specific configuration (e.g., image src, text content, plugin parameters)."
+                  "description": "Element-specific configuration (e.g., image src, text content, plugin parameters). Supports variable interpolation like '{{user.name}}'.",
+                  "properties": {
+                    "src": {
+                      "type": "string",
+                      "description": "Static asset path (e.g., 'assets/img/bg.jpg') or Semantic Asset URN (e.g., 'urn:asset:magical_forest?season=summer&mood={{user.mood}}')."
+                    },
+                    "text_en": {
+                      "type": "string",
+                      "description": "English text content. Supports variable interpolation."
+                    },
+                    "text_zh": {
+                      "type": "string",
+                      "description": "Chinese text content. Supports variable interpolation."
+                    },
+                    "word_timings": {
+                      "type": "array",
+                      "description": "Word-level timestamp array for karaoke-style highlighting."
+                    },
+                    "position": {
+                      "type": "object",
+                      "description": "Position coordinates or percentage."
+                    },
+                    "size": {
+                      "type": "object",
+                      "description": "Size dimensions or percentage."
+                    }
+                  }
+                },
+                "provider": {
+                  "type": "object",
+                  "description": "JIT (Just-In-Time) AIGC provider for dynamic content generation.",
+                  "required": ["type", "endpoint", "payload"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["aigc_service"],
+                      "description": "Type of AIGC provider."
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "description": "Backend API endpoint for AIGC service."
+                    },
+                    "payload": {
+                      "type": "object",
+                      "description": "Payload for AIGC service, may contain 'intent' and current state data. Supports variable interpolation.",
+                      "properties": {
+                        "intent": {
+                          "type": "string",
+                          "description": "High-level intent (e.g., 'friendly_creature', 'happy_fox')."
+                        },
+                        "user_input": {
+                          "type": "any",
+                          "description": "User input for generation (e.g., '$state.canvas.base64')."
+                        }
+                      }
+                    },
+                    "states": {
+                      "type": "object",
+                      "description": "Fallback and loading states for JIT AIGC.",
+                      "properties": {
+                        "on_loading": {
+                          "type": "object",
+                          "properties": {
+                            "type": { "type": "string", "enum": ["animation", "image"] },
+                            "src": { "type": "string" }
+                          }
+                        },
+                        "on_timeout_or_error": {
+                          "type": "object",
+                          "properties": {
+                            "type": { "type": "string", "enum": ["animation", "image"] },
+                            "src": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
                 },
                 "initial_state": {
                   "type": "object",
@@ -155,7 +232,7 @@
                   "properties": {
                     "source_id": {
                       "type": "string",
-                      "description": "ID of the element or plugin emitting the event."
+                      "description": "ID of the element or plugin emitting the event. Supports variable interpolation."
                     },
                     "event": {
                       "type": "string",
@@ -182,11 +259,11 @@
                       },
                       "subject": {
                         "type": "string",
-                        "description": "Dynamic path to state (e.g., '$element.apple.current_pos.x', '$state.quiz.answer_input')."
+                        "description": "Dynamic path to state (e.g., '$element.apple.current_pos.x', '$state.quiz.answer_input'). Supports variable interpolation."
                       },
                       "target": {
                         "type": "any",
-                        "description": "Target value for comparison."
+                        "description": "Target value for comparison. Supports variable interpolation."
                       }
                     }
                   }
@@ -205,24 +282,24 @@
                       },
                       "target_id": {
                         "type": "string",
-                        "description": "ID of the element to apply the action to (if applicable)."
+                        "description": "ID of the element to apply the action to (if applicable). Supports variable interpolation."
                       },
                       "value": {
                         "type": "any",
-                        "description": "Value to set for state changes, or animation/audio path."
+                        "description": "Value to set for state changes, or animation/audio path. Supports variable interpolation."
                       },
                       "to": {
                         "type": "string",
-                        "description": "Target scene_id for 'navigate' action."
+                        "description": "Target scene_id for 'navigate' action. Supports variable interpolation."
                       },
                       "event": {
                         "type": "string",
-                        "description": "Event name for 'emit_telemetry' action."
+                        "description": "Event name for 'emit_telemetry' action. Supports variable interpolation."
                       },
                       "tags": {
                         "type": "array",
                         "items": { "type": "string" },
-                        "description": "Tags for 'emit_telemetry' action."
+                        "description": "Tags for 'emit_telemetry' action. Supports variable interpolation."
                       },
                       "delay_ms": {
                         "type": "integer",
@@ -236,10 +313,14 @@
           },
           "scene_state": {
             "type": "object",
-            "description": "Initial state for the scene's internal state machine, can be manipulated by actions."
+            "description": "Initial state for the scene's internal state machine, can be manipulated by actions. Supports variable interpolation."
           }
         }
       }
+    },
+    "global_context": {
+      "type": "object",
+      "description": "Global context data available for variable interpolation across all scenes. Can be pre-filled or dynamically updated."
     }
   }
 }
