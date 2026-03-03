@@ -12,6 +12,7 @@
 const SceneLoader = (() => {
   let _data = null;
   let _stageEl = null;
+  let _dialogues = null; // 新增：当前场景的 dialogues 数据
 
   async function load(url) {
     try {
@@ -29,11 +30,12 @@ const SceneLoader = (() => {
     return _data;
   }
 
-  function render(stageEl) {
+  function render(stageEl, scene, dialogues, ui) {
     _stageEl = stageEl;
-    if (!_data) throw new Error('请先调用 SceneLoader.load()');
+    _dialogues = dialogues; // 保存当前场景的 dialogues 数据
+    if (!scene) throw new Error('场景数据为空');
 
-    const { scene, dialogues, ui } = _data;
+    // 不再依赖 _data，直接使用传入的参数
 
     // —— 渲染背景 ——
     if (scene.background.type === 'css_gradient') {
@@ -150,14 +152,15 @@ const SceneLoader = (() => {
   }
 
   function switchDialogue(dialogueId) {
-    if (!_data) return;
-    const dlg = _data.dialogues[dialogueId];
+    if (!_dialogues) return;
+    const dlg = _dialogues[dialogueId];
     if (dlg) _renderSubtitle(dlg);
   }
 
   function getData() { return _data; }
+  function getDialogues() { return _dialogues; } // 新增：获取当前场景的 dialogues 数据
 
-  return { load, render, switchDialogue, getData };
+  return { load, render, switchDialogue, getData, getDialogues };
 })();
 
 
@@ -633,34 +636,111 @@ const ParticleSystem = (() => {
 })();
 
 
+
+/* ==================== NavigationEngine 模块 ==================== */
+const NavigationEngine = (() => {
+  let _bookData = null;
+  let _currentSceneIndex = 0;
+  let _stageEl = null;
+  let _onSceneChangeCallback = null;
+
+  function init(stageEl, bookData, onSceneChange) {
+    _stageEl = stageEl;
+    _bookData = bookData;
+    _onSceneChangeCallback = onSceneChange;
+
+    _renderNavButtons();
+  }
+
+  function _renderNavButtons() {
+    // 渲染导航按钮（暂时不实现具体UI，只提供骨架）
+    // 实际的按钮将在 App.boot 阶段统一渲染
+  }
+
+  function goToScene(index) {
+    if (index < 0 || index >= _bookData.scenes.length) {
+      console.warn('场景索引超出范围:', index);
+      return;
+    }
+    _currentSceneIndex = index;
+    if (_onSceneChangeCallback) {
+      _onSceneChangeCallback(_bookData.scenes[_currentSceneIndex]);
+    }
+  }
+
+  function goToNextScene() {
+    const currentScene = _bookData.scenes[_currentSceneIndex];
+    if (currentScene && currentScene.next_scene) {
+      const nextSceneId = currentScene.next_scene;
+      const nextIndex = _bookData.scenes.findIndex(s => s.scene_id === nextSceneId);
+      if (nextIndex !== -1) {
+        goToScene(nextIndex);
+        return;
+      }
+    }
+    // 如果没有 next_scene 或 next_scene 找不到，尝试直接去下一个索引
+    if (_currentSceneIndex + 1 < _bookData.scenes.length) {
+      goToScene(_currentSceneIndex + 1);
+    } else {
+      console.log('已经是最后一页了，或没有明确的下一页');
+      if (_onSceneChangeCallback) _onSceneChangeCallback(null); // 告知App已经结束
+    }
+  }
+
+  function goToPrevScene() {
+    if (_currentSceneIndex > 0) {
+      goToScene(_currentSceneIndex - 1);
+    } else {
+      console.log('已经是第一页了');
+    }
+  }
+
+  function restartBook() {
+    goToScene(0);
+  }
+
+  function getCurrentScene() {
+    return _bookData.scenes[_currentSceneIndex];
+  }
+
+  return { init, goToScene, goToNextScene, goToPrevScene, restartBook, getCurrentScene };
+})();
+
+
 /* ==================== App 入口 ==================== */
 const App = (() => {
+  let _bookData = null;
+  let _stageEl = null;
+  let _currentSceneIndex = 0;
+  let _currentScene = null;
 
   async function boot() {
     const loadingScreen = document.getElementById('loading-screen');
+    _stageEl = document.getElementById('stage');
+    if (!_stageEl) {
+      console.error('找不到 #stage 元素');
+      return;
+    }
 
     try {
-      const data = await SceneLoader.load('data/scene.json');
-
-      const stage = document.getElementById('stage');
-      if (!stage) throw new Error('找不到 #stage 元素');
-
-      SceneLoader.render(stage);
-
-      const bgCanvas = document.getElementById('bg-canvas');
-      if (bgCanvas && data.scene.background.particles) {
-        ParticleSystem.init(bgCanvas);
+      // 直接从 window.__BOOK_DATA__ 加载数据
+      _bookData = window.__BOOK_DATA__;
+      if (!_bookData || !_bookData.scenes || _bookData.scenes.length === 0) {
+        throw new Error('未找到绘本数据 (window.__BOOK_DATA__) 或数据为空');
       }
 
-      DragDropEngine.init(stage, data.interaction, () => {
-        const hintBar = document.getElementById('hint-bar');
-        if (hintBar) hintBar.classList.remove('visible');
-      });
+      // 初始化 NavigationEngine
+      NavigationEngine.init(_stageEl, _bookData, renderScene);
+
+      // 渲染初始场景
+      renderScene(_bookData.scenes[_currentSceneIndex]);
 
       if (loadingScreen) {
         loadingScreen.classList.add('fade-out');
         setTimeout(() => loadingScreen.remove(), 800);
       }
+
+      _setupNavButtons();
 
     } catch (err) {
       console.error('引擎启动失败:', err);
@@ -669,6 +749,116 @@ const App = (() => {
         const text = loadingScreen.querySelector('.loading-text');
         if (ring) ring.style.borderTopColor = '#ff4444';
         if (text) text.textContent = '加载失败，请刷新重试';
+      }
+    }
+  }
+
+  // 渲染场景的公共逻辑
+  function renderScene(sceneData) {
+    if (!sceneData) {
+      console.log("没有更多场景可渲染，可能已是书的结尾。");
+      _stageEl.innerHTML = '<div style="text-align: center; padding-top: 20vh; color: white; font-size: 3em;">全书完！</div>';
+      _updateNavButtonsVisibility(false, false);
+      return;
+    }
+
+    _currentScene = sceneData;
+    _currentSceneIndex = _bookData.scenes.findIndex(s => s.scene_id === sceneData.scene_id); // 更新当前场景索引
+
+    // 清理旧场景元素
+    _stageEl.innerHTML = ''; // 清空舞台，只保留 canvas
+    const bgCanvas = document.getElementById('bg-canvas');
+    if (bgCanvas) {
+      _stageEl.appendChild(bgCanvas); // 确保 Canvas 在最底层
+      ParticleSystem.destroy(); // 销毁旧场景粒子系统
+    } else {
+      // 如果canvas被清空，重新创建
+      const newBgCanvas = document.createElement('canvas');
+      newBgCanvas.id = 'bg-canvas';
+      _stageEl.appendChild(newBgCanvas);
+    }
+    // 重建 subtitle-panel 和 hint-bar
+    const subtitlePanel = document.createElement('div');
+    subtitlePanel.id = 'subtitle-panel';
+    _stageEl.appendChild(subtitlePanel);
+    const hintBar = document.createElement('div');
+    hintBar.id = 'hint-bar';
+    _stageEl.appendChild(hintBar);
+
+    SceneLoader.render(_stageEl, sceneData.scene, sceneData.dialogues, sceneData.ui); // 传递当前场景数据
+
+    // 重新初始化 DragDropEngine 和 ParticleSystem
+    if (sceneData.interaction) {
+      DragDropEngine.destroy(); // 销毁旧的DragDropEngine事件监听
+      DragDropEngine.init(_stageEl, sceneData.interaction, () => {
+        const hintBarEl = document.getElementById('hint-bar');
+        if (hintBarEl) hintBarEl.classList.remove('visible');
+        _handleInteractionSuccess(); // 交互成功后可能显示导航按钮
+      });
+    } else {
+      DragDropEngine.destroy(); // 如果当前场景没有交互，则确保销毁
+    }
+
+    if (bgCanvas && sceneData.background.particles) {
+      ParticleSystem.init(bgCanvas);
+    }
+
+    _updateNavButtonsVisibility(); // 更新导航按钮状态
+  }
+
+  // 处理交互成功后的逻辑，例如显示导航按钮
+  function _handleInteractionSuccess() {
+    const currentSceneUI = _currentScene.ui || {};
+    const navButtonConfig = currentSceneUI.nav_button || {};
+    if (navButtonConfig.show_after_interaction) {
+      const navButton = document.getElementById('nav-button');
+      if (navButton) {
+        navButton.style.display = 'block';
+        navButton.textContent = navButtonConfig.text || '下一页 →';
+        // 如果是 restart 按钮，则绑定 restartBook 事件
+        if (navButtonConfig.action === 'restart') {
+          navButton.onclick = () => NavigationEngine.restartBook();
+        } else {
+          navButton.onclick = () => NavigationEngine.goToNextScene();
+        }
+      }
+    }
+  }
+
+  // 设置导航按钮的 UI 和事件监听
+  function _setupNavButtons() {
+    // 创建全局的导航按钮容器
+    let navButton = document.getElementById('nav-button');
+    if (!navButton) {
+      navButton = document.createElement('button');
+      navButton.id = 'nav-button';
+      navButton.className = 'nav-button';
+      _stageEl.appendChild(navButton);
+    }
+    navButton.style.display = 'none'; // 默认隐藏
+
+    // TODO: 增加 prev 按钮和左右滑动事件
+  }
+
+  // 更新导航按钮的可见性
+  function _updateNavButtonsVisibility() {
+    const currentSceneUI = _currentScene.ui || {};
+    const navButtonConfig = currentSceneUI.nav_button || {};
+    const navButton = document.getElementById('nav-button');
+
+    if (navButton) {
+      if (navButtonConfig.show) {
+        // 如果配置了 show_after_interaction，则默认隐藏，等待交互成功
+        navButton.style.display = navButtonConfig.show_after_interaction ? 'none' : 'block';
+        navButton.textContent = navButtonConfig.text || '下一页 →';
+        // 绑定事件
+        if (navButtonConfig.action === 'restart') {
+          navButton.onclick = () => NavigationEngine.restartBook();
+        } else {
+          navButton.onclick = () => NavigationEngine.goToNextScene();
+        }
+      } else {
+        navButton.style.display = 'none';
       }
     }
   }
