@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Interactive Storybook Book Schema",
-  "description": "Schema for a complete, multi-scene interactive storybook, designed for AI-driven mass production.",
+  "title": "Interactive Storybook Book Schema (V2)",
+  "description": "Schema for a complete, multi-scene interactive storybook, redesigned for AI-driven mass production using Component & Event-Driven DSL.",
   "type": "object",
   "required": [
     "metadata",
@@ -53,6 +53,10 @@
         "cover_image": {
           "type": "string",
           "description": "Path to the book's cover image."
+        },
+        "cover_style": {
+          "type": "string",
+          "description": "Prompts or configurations for AIGC to generate cover image."
         }
       }
     },
@@ -90,46 +94,149 @@
     },
     "scenes": {
       "type": "array",
-      "description": "Array of individual scenes that make up the book.",
+      "description": "Array of individual scenes (stages) that make up the book.",
       "items": {
         "type": "object",
         "required": [
           "scene_id",
-          "type",
-          "content"
+          "elements",
+          "events"
         ],
         "properties": {
           "scene_id": {
             "type": "string",
             "description": "Unique identifier for this specific scene. (e.g., 'scene_desert_fox_intro')"
           },
-          "type": {
-            "type": "string",
-            "enum": ["narrative", "interactive", "quiz", "end_page"],
-            "description": "Type of scene, defining its core functionality."
-          },
           "order": {
             "type": "integer",
             "description": "The sequential order of the scene in the book. (e.g., 1, 2, 3)"
           },
-          "content": {
+          "elements": {
+            "type": "array",
+            "description": "Array of atomic UI components and plugins on this stage.",
+            "items": {
+              "type": "object",
+              "required": ["id", "type"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique identifier for the element within this scene."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Type of element (e.g., 'background_image', 'character', 'text_line', 'draggable_item', 'plugin_speech_to_text')."
+                },
+                "config": {
+                  "type": "object",
+                  "description": "Element-specific configuration (e.g., image src, text content, plugin parameters)."
+                },
+                "initial_state": {
+                  "type": "object",
+                  "description": "Initial state of the element (e.g., 'hidden', 'closed', 'hungry')."
+                },
+                "traits": {
+                  "type": "array",
+                  "description": "Array of behavioral traits (e.g., 'draggable', 'clickable', 'drop_zone', 'selectable').",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          "events": {
+            "type": "array",
+            "description": "Array of ECA (Event-Condition-Action) rules for this scene.",
+            "items": {
+              "type": "object",
+              "required": ["trigger", "actions"],
+              "properties": {
+                "trigger": {
+                  "type": "object",
+                  "required": ["source_id", "event"],
+                  "properties": {
+                    "source_id": {
+                      "type": "string",
+                      "description": "ID of the element or plugin emitting the event."
+                    },
+                    "event": {
+                      "type": "string",
+                      "description": "Event name (e.g., 'on_click', 'on_drop_success', 'on_plugin_failed', 'on_audio_end', 'on_scene_load')."
+                    },
+                    "condition": {
+                      "type": "object",
+                      "description": "Optional: Conditional logic to be met for the trigger to fire, uses AST-like structure."
+                      // e.g., {"operator": "EQUALS", "subject": "$element.item1.state", "target": "dropped"}
+                    }
+                  }
+                },
+                "conditions": {
+                  "type": "array",
+                  "description": "Array of conditions (logical AST) that must be true for actions to execute.",
+                  "items": {
+                    "type": "object",
+                    "required": ["verb", "subject", "target"],
+                    "properties": {
+                      "verb": {
+                        "type": "string",
+                        "enum": ["EQUALS", "CONTAINS", "GREATER_THAN", "LESS_THAN", "NOT"],
+                        "description": "Operator (e.g., EQUALS, CONTAINS)."
+                      },
+                      "subject": {
+                        "type": "string",
+                        "description": "Dynamic path to state (e.g., '$element.apple.current_pos.x', '$state.quiz.answer_input')."
+                      },
+                      "target": {
+                        "type": "any",
+                        "description": "Target value for comparison."
+                      }
+                    }
+                  }
+                },
+                "actions": {
+                  "type": "array",
+                  "description": "Array of actions to execute when trigger and conditions are met.",
+                  "items": {
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["change_state", "play_audio", "play_animation", "emit_telemetry", "navigate", "show_toast", "add_trait", "remove_trait"],
+                        "description": "Type of action."
+                      },
+                      "target_id": {
+                        "type": "string",
+                        "description": "ID of the element to apply the action to (if applicable)."
+                      },
+                      "value": {
+                        "type": "any",
+                        "description": "Value to set for state changes, or animation/audio path."
+                      },
+                      "to": {
+                        "type": "string",
+                        "description": "Target scene_id for 'navigate' action."
+                      },
+                      "event": {
+                        "type": "string",
+                        "description": "Event name for 'emit_telemetry' action."
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Tags for 'emit_telemetry' action."
+                      },
+                      "delay_ms": {
+                        "type": "integer",
+                        "description": "Delay in milliseconds before executing action."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "scene_state": {
             "type": "object",
-            "description": "The actual content and interactive elements for the scene. This will heavily reuse and extend the previous `scene_schema.json` concepts."
-            // Detailed content for different scene types will be defined here.
-            // For now, we'll keep it as a placeholder.
-          },
-          "next_scene_id": {
-            "type": "string",
-            "description": "Optional: Explicit ID of the next scene. If not present, default sequential order is used."
-          },
-          "prev_scene_id": {
-            "type": "string",
-            "description": "Optional: Explicit ID of the previous scene. If not present, default sequential order is used."
-          },
-          "conditional_next_scene": {
-            "type": "object",
-            "description": "Defines conditional branching to other scenes based on user interaction outcomes."
-            // e.g., if interaction 'feed_fox' success, go to 'scene_fox_happy', else 'scene_fox_sad'.
+            "description": "Initial state for the scene's internal state machine, can be manipulated by actions."
           }
         }
       }
