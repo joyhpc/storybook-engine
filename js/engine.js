@@ -758,38 +758,69 @@ const App = (() => {
     if (!sceneData) {
       console.log("没有更多场景可渲染，可能已是书的结尾。");
       _stageEl.innerHTML = '<div style="text-align: center; padding-top: 20vh; color: white; font-size: 3em;">全书完！</div>';
-      _updateNavButtonsVisibility(false, false);
+      _updateNavButtonsVisibility(false, false); // 确保隐藏导航按钮
+      // 结束时确保所有引擎停止
+      AudioSyncEngine.stop();
+      ParticleSystem.destroy();
+      DragDropEngine.destroy();
       return;
     }
 
     _currentScene = sceneData;
     _currentSceneIndex = _bookData.scenes.findIndex(s => s.scene_id === sceneData.scene_id); // 更新当前场景索引
 
-    // 清理旧场景元素
-    _stageEl.innerHTML = ''; // 清空舞台，只保留 canvas
-    const bgCanvas = document.getElementById('bg-canvas');
-    if (bgCanvas) {
-      _stageEl.appendChild(bgCanvas); // 确保 Canvas 在最底层
-      ParticleSystem.destroy(); // 销毁旧场景粒子系统
-    } else {
-      // 如果canvas被清空，重新创建
-      const newBgCanvas = document.createElement('canvas');
-      newBgCanvas.id = 'bg-canvas';
-      _stageEl.appendChild(newBgCanvas);
-    }
-    // 重建 subtitle-panel 和 hint-bar
-    const subtitlePanel = document.createElement('div');
-    subtitlePanel.id = 'subtitle-panel';
-    _stageEl.appendChild(subtitlePanel);
-    const hintBar = document.createElement('div');
-    hintBar.id = 'hint-bar';
-    _stageEl.appendChild(hintBar);
+    // --- 停止 & 销毁旧场景的引擎 ---
+    AudioSyncEngine.stop(); // 停止旧场景的音频
+    ParticleSystem.destroy(); // 销毁旧场景的粒子系统
+    DragDropEngine.destroy(); // 销毁旧场景的事件监听
 
+    // --- 清理 & 重建 DOM 元素 ---
+    // 保留 Canvas 元素，删除其他动态元素
+    let bgCanvas = document.getElementById('bg-canvas');
+    if (!bgCanvas) { // 如果 Canvas 不存在，则创建
+      bgCanvas = document.createElement('canvas');
+      bgCanvas.id = 'bg-canvas';
+      _stageEl.prepend(bgCanvas); // 作为第一个子元素，保持在最底层
+    }
+    // 清理除 Canvas 和导航按钮外的所有子元素
+    Array.from(_stageEl.children).forEach(child => {
+      if (child.id !== 'bg-canvas' && child.id !== 'loading-screen' && child.id !== 'nav-button') {
+        _stageEl.removeChild(child);
+      }
+    });
+
+    // 重建 subtitle-panel 和 hint-bar
+    let subtitlePanel = document.getElementById('subtitle-panel');
+    if (!subtitlePanel) {
+      subtitlePanel = document.createElement('div');
+      subtitlePanel.id = 'subtitle-panel';
+      _stageEl.appendChild(subtitlePanel);
+    } else {
+      subtitlePanel.innerHTML = ''; // 清空内容
+    }
+    let hintBar = document.getElementById('hint-bar');
+    if (!hintBar) {
+      hintBar = document.createElement('div');
+      hintBar.id = 'hint-bar';
+      _stageEl.appendChild(hintBar);
+    } else {
+      hintBar.textContent = ''; // 清空内容
+    }
+    // 确保导航按钮也存在，并在需要时重新添加到 _stageEl
+    let navButton = document.getElementById('nav-button');
+    if (!navButton) {
+      navButton = document.createElement('button');
+      navButton.id = 'nav-button';
+      navButton.className = 'nav-button';
+      _stageEl.appendChild(navButton);
+    }
+
+
+    // --- 渲染新场景元素 ---
     SceneLoader.render(_stageEl, sceneData.scene, sceneData.dialogues, sceneData.ui); // 传递当前场景数据
 
-    // 重新初始化 DragDropEngine 和 ParticleSystem
+    // --- 初始化新场景的引擎 ---
     if (sceneData.interaction) {
-      DragDropEngine.destroy(); // 销毁旧的DragDropEngine事件监听
       DragDropEngine.init(_stageEl, sceneData.interaction, () => {
         const hintBarEl = document.getElementById('hint-bar');
         if (hintBarEl) hintBarEl.classList.remove('visible');
@@ -799,8 +830,11 @@ const App = (() => {
       DragDropEngine.destroy(); // 如果当前场景没有交互，则确保销毁
     }
 
-    if (bgCanvas && sceneData.background.particles) {
+    if (bgCanvas && sceneData.scene.background.particles) {
       ParticleSystem.init(bgCanvas);
+    } else if (bgCanvas) {
+      // 如果没有粒子，但有 Canvas，确保 Canvas 存在但粒子系统不运行
+      ParticleSystem.destroy();
     }
 
     _updateNavButtonsVisibility(); // 更新导航按钮状态
